@@ -84,9 +84,9 @@ Endpoints of interest:
 
 | Route                | What It Does                              |
 | -------------------- | ----------------------------------------- |
-| `/albums/{id}`       | Minimal Spotify pass-through              |
-| `/expand/album/{id}` | Full track list with pagination/ISRC/etc. |
-| `/tracks/{id}`       | Single-track lookup                       |
+| `/v1/albums/{id}`    | Minimal Spotify pass-through              |
+| `/mp3tag/album/{id}` | Full track list with pagination/ISRC/etc. |
+| `/v1/tracks/{id}`    | Single-track lookup                       |
 
 ---
 
@@ -99,7 +99,7 @@ MP3tag uses a proprietary *Tag Source* DSL (`.src` files). The repo ships two fu
 | `Spotify API Proxy#Album + Artist.src` | Search by album *and* (primary) artist    |
 | `Spotify API Proxy#Album ID.src`       | Fast lookup when you already have the URI |
 
-Key mapping cheatsheet (see **json_idtag_example**):
+Key mapping cheatsheet (see **json_idtag_example.tsv**):
 
 | MP3tag Field  | JSON Path                           |
 | ------------- | ----------------------------------- |
@@ -110,6 +110,29 @@ Key mapping cheatsheet (see **json_idtag_example**):
 | `TRACKTOTAL`  | `.total`                            |
 | `YEAR`        | `.release_date`                     |
 | ...           | ...                                 |
+
+### Using MP3tag Source Files
+
+1. Copy the `.src` files to MP3tag's tag sources directory:
+   ```
+   %APPDATA%\Mp3tag\data\sources
+   ```
+
+2. Select your preferred source in MP3tag:
+   - **Album + Artist**: Search by both fields for precise matching
+   - **Album ID**: Direct lookup using Spotify URI/ID
+
+3. For Album + Artist search:
+   - Enter album name in first field
+   - Enter primary artist name in second field
+   - Results show matching albums with track counts
+
+4. For Album ID lookup:
+   - Paste full Spotify URI or just the ID
+   - Format: `spotify:album:3zbUKdlF0VwCQhbVfc714W` or `3zbUKdlF0VwCQhbVfc714W`
+   - Gets complete track listing with all metadata
+
+The proxy handles token refresh, pagination, and combines multi-disc releases automatically.
 
 ### Troubleshooting the DSL
 
@@ -125,15 +148,15 @@ Key mapping cheatsheet (see **json_idtag_example**):
 .env_example
 .gitignore
 .python-version
-json_idtag_example     # real-world mapping walkthrough
-main.py               # FastAPI app
-merge_dict.py         # safe-merge utils for nested dicts/lists
-resp_mp3tag.json      # example response on /mp3tag/
-resp_origin.json      # example response on origin spotify api
-Spotify#Album + Artist.src
-Spotify#Album ID.src
-README.md             # you’re reading it
-pyproject.toml        # optional modern build/dep spec
+json_idtag_example.tsv  # real-world mapping walkthrough
+main.py                 # FastAPI app
+merge_dict.py           # safe-merge utils for nested dicts/lists
+resp_mp3tag.json        # example response on /mp3tag/
+resp_origin.json        # example response on origin spotify api
+Spotify API Proxy#Album + Artist.src
+Spotify API Proxy#Album ID.src
+README.md               # you’re reading it
+pyproject.toml          # optional modern build/dep spec
 ```
 
 ---
