@@ -31,8 +31,8 @@
 * using [uv](https://github.com/astral-sh/uv) for python package management now
 
 ```bash
-git clone https://github.com/jryaonj/spotify-mp3tag.git
-cd spotify-mp3tag
+git clone https://github.com/jryaonj/spotify-mp3tag-proxy.git
+cd spotify-mp3tag-proxy
 python -m venv venv && source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -U uv                                      # Modern drop-in for pip+virtualenv
 uv pip install -r requirements.txt
@@ -75,7 +75,7 @@ The FastAPI docs live at `http://127.0.0.1:12880/docs`.
 ## Running the Server
 
 ```bash
-cd spotify-mp3tag
+cd spotify-mp3tag-proxy
 source .venv/bin/activate
 uvicorn main:app --host 0.0.0.0 --port ${PORT:-12880} --env-file .env
 ```

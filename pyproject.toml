@@ -1,5 +1,5 @@
 [project]
-name = "spotipy-mp3tag"
+name = "spotify-mp3tag-proxy"
 version = "0.1.0"
 description = "Spotify API Proxy for MP3tag Tag-Source and Other Metadata Applications"
 readme = "README.md"
