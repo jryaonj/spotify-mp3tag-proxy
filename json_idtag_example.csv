@@ -1,0 +1,18 @@
+json_path	ID3tag	value
+.name	ALBUM	100 Best Tango
+.artists[].name	ALBUMARTIST	Various Artists
+.total_tracks	TRACKTOTAL	100
+.external_urls.spotify	WXXX	https://open.spotify.com/album/3zbUKdlF0VwCQhbVfc714W
+.release_date	YEAR	2011-03-04
+.images[0].url	SSCOVERIMG	https://i.scdn.co/image/ab67616d0000b273d0eae4ba100c3a3c5175f329
+.mp3tag.complication**.album_type=="complication"	COMPILATION	1
+.mp3tag.copyright**.copyrights[].text(.type=C)	COPYRIGHT	© 2011 EMI Records Ltd.
+.mp3tag.**	DISCTOTAL	3
+.tracks.items[].artists[].name	ARTIST	Juan De Dios Filiberto
+.tracks.items[].artists[].name	ARTIST	Aníbal Troilo
+.tracks.items[].artists[].name	ARTIST	The Aníbal Troilo Orchestra
+.tracks.items[].disc_number	DISCNUMBER	1
+.tracks.items[].external_ids.isrc	ISRC	ARF049500101
+.tracks.items[].name	TITLE	Quejas De Bandoneón
+.tracks.items[].track_number	TRACK	4
+.tracks.items[].external_urls.spotify	WOAS	https://open.spotify.com/track/1MNr8CqnNvUAgVHZL1tcJB

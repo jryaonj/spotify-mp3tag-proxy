@@ -1,0 +1,14 @@
+[project]
+name = "spotipy-mp3tag"
+version = "0.1.0"
+description = "Spotify API Proxy for MP3tag Tag-Source and Other Metadata Applications"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115.12",
+    "httpx>=0.28.1",
+    "python-dotenv[standard]>=1.1.0",
+    "spotipy[standard]>=2.25.1",
+    "uvicorn[standard]>=0.34.3",
+]
+

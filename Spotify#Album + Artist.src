@@ -1,0 +1,180 @@
+#####   Search by dialog   #####
+
+[Name]=Spotify (API Proxy • Album + Artist)
+[BasedOn]=http://localhost:12880/
+[IndexUrl]=http://localhost:12880/v1/search?market=US&type=album&limit=50&offset=0&q=
+[WordSeparator]=%20
+[IndexFormat]=%_url%|%_preview%|%Album%|%Artist%|%Year%|%Tracks%
+[Encoding]=url-utf-8
+[SearchBy]=Artist||$if2(%albumartist%,%artist%)||%s||Album||%album%||%s
+
+
+#####   List of search results   #####
+
+[ParserScriptIndex]=...
+
+json "on"
+json_select_object "albums"
+
+json_foreach "items"
+
+    # Album info json URL
+    json_select "href"
+    Replace "https://api.spotify.com" "http://localhost:12880"
+    SayRest
+    Say "|"
+
+    # Preview URL
+    json_select_object "external_urls"
+    json_select "spotify"
+    SayRest
+    Say "|"
+    json_unselect_object
+
+    # Album Title
+    json_select "name"
+    Replace "|" "$verticalBar()"
+    SayRest
+    Say "|"
+
+    # Album Artist
+    json_select_many "artists" "name" "; "
+    Replace "|" "$verticalBar()"
+    SayRest
+    Say "|"
+
+    # Album Release Date
+    json_select "release_date"
+    SayRest
+    Say "|"
+
+    # Album Tracks
+    json_select "total_tracks"
+    SayRest
+
+    # End of line
+    SayNewline
+
+json_foreach_end
+
+
+#####   Album info   #####
+[ParserScriptAlbum]=...
+
+json "on"
+
+### Common info ###
+
+# Album Title
+OutputTo "ALBUM"
+json_select "name"
+Replace "|" "$verticalBar()"
+SayRest
+
+# Album Artist
+OutputTo "ALBUMARTIST"
+json_select_many "artists" "name" "\\\\"
+SayRest
+
+# Show CoverArt URL
+OutputTo "COVERURL"
+json_select_array "images" 1
+json_select "url"
+SayRest
+json_unselect_object
+
+# Album Release Date
+OutputTo "YEAR"
+json_select "release_date"
+SayRest
+
+# Album Total Tracks
+OutputTo "TRACKTOTAL"
+json_select "total_tracks"
+SayRest
+
+# Album Link, using customed WXXX
+json_select_object "external_urls"
+OutputTo "WXXX"
+json_select "spotify"
+SayRest
+json_unselect_object
+
+# Album Label
+OutputTo "LABEL"
+json_select "label"
+SayRest
+
+
+# .mp3tag obj, preprocessed in apisvr
+json_select_object "mp3tag"
+# Complication, preprocessed in apisvr
+OutputTo "COMPILATION"
+json_select "complication"
+SayRest
+
+# Copyrights, preprocessed in apisvr
+OutputTo "COPYRIGHT"
+json_select "copyright"
+SayRest
+
+# DiscTotal, preprocessed in apisvr
+OutputTo "DISCTOTAL"
+json_select "disc_total"
+SayRest
+json_unselect_object
+
+### Track Info Loop ###
+json_select_object "tracks"
+json_foreach "items"
+
+    # Track Title
+    OutputTo "TITLE"
+    json_select "name"
+    Replace "|" "$verticalBar()"
+    SayRest
+    Say "|"
+
+    # Track Artist
+    OutputTo "ARTIST"
+    json_select_many "artists" "name" "\\\\"
+    Replace "|" "$verticalBar()"
+    SayRest
+    Say "|"
+
+    # Disc Number
+    OutputTo "DISCNUMBER"
+    json_select "disc_number"
+    SayRest
+    Say "|"
+
+    # ISRC
+    json_select_object "external_ids"
+    OutputTo "ISRC"
+    json_select "isrc"
+    SayRest
+    Say "|"
+    json_unselect_object
+
+    # Track Number
+    OutputTo "TRACK"
+    json_select "track_number"
+    SayRest
+    Say "|"
+
+    # WOAS
+    json_select_object "external_urls"
+    OutputTo "WOAS"
+    json_select "spotify"
+    SayRest
+    Say "|"
+    json_unselect_object
+
+    # # Track Duration
+    # #OutputTo "_LENGTH"
+    # OutputTo "DURATION"
+    # json_select "duration_ms"
+    # SayDuration "ms"
+    # Say "|"
+
+json_foreach_end
