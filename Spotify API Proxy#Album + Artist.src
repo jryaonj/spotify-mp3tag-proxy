@@ -1,7 +1,7 @@
 #####   Search by dialog   #####
 
 [Name]=Spotify (API Proxy • Album + Artist)
-[BasedOn]=http://localhost:12880/
+[BasedOn]=json
 [IndexUrl]=http://localhost:12880/v1/search?market=US&type=album&limit=50&offset=0&q=
 [WordSeparator]=%20
 [IndexFormat]=%_url%|%_preview%|%Album%|%Artist%|%Year%|%Tracks%
@@ -129,7 +129,9 @@ json_select_object "tracks"
 json_foreach "items"
 
     # Track Title
-    OutputTo "TITLE"
+    # OutputTo "TITLE"
+    ## mp3tag force used TITLE
+    OutputTo "TRACKS"
     json_select "name"
     Replace "|" "$verticalBar()"
     SayRest
@@ -170,11 +172,11 @@ json_foreach "items"
     Say "|"
     json_unselect_object
 
-    # # Track Duration
-    # #OutputTo "_LENGTH"
+    # Track Duration
+    OutputTo "_LENGTH"
     # OutputTo "DURATION"
-    # json_select "duration_ms"
-    # SayDuration "ms"
-    # Say "|"
+    json_select "duration_ms"
+    SayDuration "ms"
+    Say "|"
 
 json_foreach_end
