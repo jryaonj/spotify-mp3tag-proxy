@@ -122,6 +122,13 @@ SayRest
 OutputTo "DISCTOTAL"
 json_select "disc_total"
 SayRest
+
+# GENRE, preprocessed in apisvr
+OutputTo "GENRE"
+json_select_array "genres" 1
+json_select "text"
+SayRest
+json_unselect_object
 json_unselect_object
 
 ### Track Info Loop ###

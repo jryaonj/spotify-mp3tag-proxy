@@ -36,6 +36,15 @@ def batched(it, n):
     while batch := list(islice(it, n)):
         yield batch
 
+# Add this helper function after the existing imports
+def inferred_artist_genres(artist_id: str, sp) -> list[str]:
+    """
+    Fetch genres for a given artist and return a sorted list.
+    """
+    artist = sp.artist(artist_id)   # full Artist object
+    genres = artist.get("genres", [])
+    return [genre.capitalize() for genre in genres]
+
 # ─── FastAPI init ───────────────────────────────────────────
 app = FastAPI(title="Spotify Proxy + Album Expander")
 
@@ -162,5 +171,17 @@ def expand_album(
             album["mp3tag"]["copyright"] = album["copyrights"][0]["text"]
     except Exception:
         pass
+
+    # After getting the album data, fetch genres from album artists
+    # Fetch and merge all artist genres efficiently
+    artist_ids = [artist["id"] for artist in album["artists"]]
+    genres = []
+    seen = set()
+    for artist_id in artist_ids:
+        for genre in inferred_artist_genres(artist_id, sp):
+            if genre not in seen:
+                genres.append({"text": genre})
+                seen.add(genre)
+    album["mp3tag"]["genres"] = genres
 
     return JSONResponse(content=album)
