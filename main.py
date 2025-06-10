@@ -5,6 +5,7 @@ Environment:   CLIENT_ID  CLIENT_SECRET  (generated from Spotify Developer Conso
               PORT=8000 (optional)
 Start:         uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
 """
+from pprint import pprint
 import os, asyncio, time
 from itertools import islice
 from typing import List
@@ -12,10 +13,13 @@ from typing import List
 import httpx
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
-from fastapi import FastAPI, Request, HTTPException, Response, Query
+from fastapi import FastAPI, APIRouter, Request, HTTPException, Response, Query
 from fastapi.responses import JSONResponse
 
 from merge_dict import merge_missing_props_by_id
+from fastapi.responses import StreamingResponse
+import csv
+from io import StringIO
 
 # ─── Environment & Globals ────────────────────────────────────────────
 PORT = int(os.getenv("PORT", 8000))
@@ -185,3 +189,192 @@ def expand_album(
     album["mp3tag"]["genres"] = genres
 
     return JSONResponse(content=album)
+
+spmusic_router = APIRouter(prefix="/spmusic", tags=["spmusic"])
+
+@spmusic_router.get("/albums/by-artist/{artist_name}")
+async def get_artist_albums(
+    artist_name: str,
+    down: bool = Query(False, description="Return CSV if true, else JSON"),
+    appears: bool = Query(False, description="Include appears_on albums"),
+    compilation: bool = Query(True, description="Include compilations"),
+):
+    """
+    Get all albums belonging to an artist by their name.
+    Returns expanded album information including tracks and genres, as JSON or CSV.
+    """
+    album_types = ["album", "single"]
+    if appears:
+        album_types.append("appears_on")
+    if compilation:
+        album_types.append("compilation")
+    
+    album_type_str = ",".join(album_types)
+
+    try:
+        # Search for the artist
+        results = sp.search(artist_name, type='artist', limit=1)
+        if not results['artists']['items']:
+            raise HTTPException(status_code=404, detail=f"Artist '{artist_name}' not found")
+        
+        artist = results['artists']['items'][0]
+        
+        # Get all albums for the artist
+        albums = []
+        offset = 0
+        limit = 50  # Spotify API limit
+        
+        # as there is bug in different type search
+        # we need to iterate over each album type
+        albums = []
+        for album_type in album_types:
+            offset = 0
+            while True:
+                results = sp.artist_albums(
+                    artist['id'],
+                    include_groups=album_type,
+                    country=None,  # Use None to get all markets
+                    limit=limit,
+                    offset=offset,
+                )
+                if not results['items']:
+                    break
+                albums.extend(results['items'])
+                if len(results['items']) < limit:
+                    break
+                offset += limit
+
+        if down:
+            # Prepare CSV with UTF-8 BOM for Excel compatibility
+            output = StringIO()
+            output.write('\ufeff')  # Add UTF-8 BOM
+            writer = csv.DictWriter(
+                output,
+                fieldnames=["release_date", "album_type", "albumartist", "name", "id", "total_tracks", "external_url"],
+                extrasaction='ignore'
+            )
+            writer.writeheader()
+            for album in albums:
+                writer.writerow({
+                    "release_date": album.get("release_date"),
+                    "album_type": album.get("album_type"),
+                    "albumartist": artist_name,
+                    "name": album.get("name"),
+                    "id": album.get("id"),
+                    "total_tracks": album.get("total_tracks"),
+                    "external_url": album.get("external_urls", {}).get("spotify"),
+                })
+            output.seek(0)
+            safe_artist_name = artist_name.replace(' ', '_')
+            return StreamingResponse(
+                output,
+                media_type="text/csv; charset=utf-8",
+                headers={
+                    "Content-Disposition": f"attachment; filename={safe_artist_name}_spotify_albums.csv",
+                    "Content-Type": "text/csv; charset=utf-8"
+                }
+            )
+        else:
+            return JSONResponse(content={
+                "artist": artist,
+                "albums": albums
+            })
+        
+    except spotipy.SpotifyException as e:
+        raise HTTPException(status_code=e.http_status, detail=e.msg)
+
+# ─── 3) YouTube Music Album Finder ────────────────────────────────
+# only artist full album mode, to avoid iterated searches
+
+from ytmusicapi import YTMusic
+# from rapidfuzz import process, fuzz
+
+ytmusic_cookie_path = "ytmusic_cookie.json"
+if os.path.exists(ytmusic_cookie_path):
+    yt = YTMusic(ytmusic_cookie_path)
+else:
+    yt = YTMusic() # no auth needed for public catalogue      
+
+ytmusic_router = APIRouter(prefix="/ytmusic", tags=["ytmusic"])
+
+def _artists(hit):
+    # Helper to extract artist(s) from YTMusic search result
+    if "artist" in hit and isinstance(hit["artist"], str):
+        return hit["artist"]
+    if "artists" in hit and isinstance(hit["artists"], list):
+        return ", ".join(a["name"] for a in hit["artists"])
+    return ""
+
+def browse_to_urls(browse_id: str) -> dict:
+    # Case 1 – already a playlist-style ID (VL…, PL…): just use it
+    if browse_id.startswith(('VL', 'PL')):
+        url = f"https://music.youtube.com/playlist?list={browse_id}"
+        return {"playlist_url": url, "browse_url": url.replace("playlist?list=", "browse/")}
+
+    # Case 2 – album/single page (MPREb_…)
+    info = yt.get_album(browse_id)          # one network trip :contentReference[oaicite:0]{index=0}
+    plist = info.get("audioPlaylistId")     # present for >99 % of albums :contentReference[oaicite:1]{index=1}
+    if not plist:
+        raise ValueError("Album has no audioPlaylistId (rare but possible).")
+    return {
+        "playlist_url": f"https://music.youtube.com/playlist?list={plist}",
+        "browse_url":   f"https://music.youtube.com/browse/{browse_id}"
+    }
+
+@ytmusic_router.get("/albums/by-artist/{artist_name}")
+async def ytmusic_albums_by_artist(
+    artist_name: str,
+    down: bool = Query(False, description="Return CSV if true, else JSON"),
+):
+    """
+    Search YouTube Music albums by artist name.
+    Returns JSON or CSV depending on `csv` query param.
+    """
+    hits = yt.search(artist_name, filter="albums", limit=250)
+    albums = []
+    for h in hits:
+        album = {
+            "title": h.get("title"),
+            "artist": _artists(h),
+            "year": h.get("year"),
+            "browseId": h.get("browseId"),
+            "audioPlaylistId": h.get("audioPlaylistId"),
+            "trackCount": h.get("trackCount"),
+        }
+        albums.append(album)
+
+    if down:
+        output = StringIO()
+        output.write('\ufeff')
+        writer = csv.DictWriter(
+            output,
+            fieldnames=["title", "artist", "year", "browseId", "audioPlaylistId", "trackCount", "playlist_url", "browse_url"],
+            extrasaction='ignore'
+        )
+        writer.writeheader()
+        for album_batch in batched(albums, 50):
+            batch_with_urls = []
+            for album in album_batch:
+                urls = browse_to_urls(album["browseId"]) if album.get("browseId") else {"playlist_url": "", "browse_url": ""}
+                batch_with_urls.append({
+                    **album,
+                    "playlist_url": urls.get("playlist_url", ""),
+                    "browse_url": urls.get("browse_url", ""),
+                })
+            for album in batch_with_urls:
+               writer.writerow(album)
+        output.seek(0)
+        safe_artist_name = artist_name.replace(' ', '_')
+        return StreamingResponse(
+            output,
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": f"attachment; filename={safe_artist_name}_ytmusic_albums.csv",
+                "Content-Type": "text/csv; charset=utf-8"
+            }
+        )
+    return {"artist": artist_name, "albums": albums}
+
+# Register router
+app.include_router(ytmusic_router)
+app.include_router(spmusic_router)

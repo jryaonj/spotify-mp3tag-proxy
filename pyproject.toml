@@ -10,5 +10,6 @@ dependencies = [
     "python-dotenv[standard]>=1.1.0",
     "spotipy[standard]>=2.25.1",
     "uvicorn[standard]>=0.34.3",
+    "ytmusicapi>=1.10.3",
 ]
 
